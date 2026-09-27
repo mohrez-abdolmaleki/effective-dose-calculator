@@ -1,0 +1,8 @@
+PatientID,PatientAge,ExamRegion,DLP_mGycm
+P001,45,Head,1000
+P002,7,Chest,600
+P003,34,abdomen/pelvis,900
+P004,,Head,700
+P005,29,Head,
+P006,52,Foot,300
+P007,16,Chest,550
