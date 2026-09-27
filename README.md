@@ -326,5 +326,5 @@ The architecture is intended to keep these extensions independent from the exist
 
 ## License
 
-License information will be added before public release.
+A license will be selected and added in a future release.
 
