@@ -1,0 +1,8 @@
+PatientID,PatientAge,ExamRegion,DLP_mGycm,Radiopharmaceutical,InjectedActivity_MBq
+P101,54,trunk,750,FDG,310
+P102,61,trunk,800,FDG,
+P103,,trunk,700,FDG,295
+P104,47,trunk,650,DOTATATE,150
+P105,8,trunk,500,DOTATATE,80
+P106,66,trunk,900,PSMA11,185
+P107,70,trunk,,PSMA11,190

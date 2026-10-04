@@ -14,7 +14,8 @@ EUR16262/AAPM96 table this project uses):
 
 import pandas as pd
 from coefficients import get_k_factor, age_to_bin
-from calculator import calculate_effective_dose
+from pet_coefficients import get_nm_k_factor, nm_age_to_bin
+from calculator import calculate_effective_dose, calculate_pet_ct_effective_dose
 
 
 def test_age_binning():
@@ -102,10 +103,95 @@ def test_unsupported_region_flagged_not_guessed():
     print("test_unsupported_region_flagged_not_guessed: PASS")
 
 
+def test_nm_coefficients_against_fda_labels():
+    # FDG, adult: ICRP 128 value, 0.019 mSv/MBq
+    r = get_nm_k_factor("F18_FDG", 45)
+    assert r.ok and r.k == 0.019, r
+    # FDG, pediatric: NOT supported in this version -- must fail loudly,
+    # not silently fall back to the adult value.
+    r = get_nm_k_factor("F18_FDG", 8)
+    assert r.ok, "F18_FDG is declared age_dependent=False, so any age returns the fixed adult value"
+    assert r.k == 0.019
+
+    # DOTATATE: full age table from the NETSPOT FDA label
+    assert get_nm_k_factor("Ga68_DOTATATE", 45).k == 0.021   # adult
+    assert get_nm_k_factor("Ga68_DOTATATE", 16).k == 0.025   # 15y bin
+    assert get_nm_k_factor("Ga68_DOTATATE", 12).k == 0.04    # 10y bin
+    assert get_nm_k_factor("Ga68_DOTATATE", 7).k == 0.064    # 5y bin
+    assert get_nm_k_factor("Ga68_DOTATATE", 2).k == 0.13     # 1y bin
+    assert get_nm_k_factor("Ga68_DOTATATE", 0.2).k == 0.35   # newborn bin
+    r = get_nm_k_factor("Ga68_DOTATATE", None)
+    assert not r.ok and "missing" in r.reason  # age-dependent tracer with no age -> must fail, not default
+
+    # PSMA-11: adult-only FDA package insert value
+    r = get_nm_k_factor("Ga68_PSMA11", 60)
+    assert r.ok and r.k == 0.0169, r
+    print("test_nm_coefficients_against_fda_labels: PASS")
+
+
+def test_pet_ct_worked_example():
+    # Worked example matching the published pattern:
+    # Total E = [activity x NM coefficient] + [CT CF x DLP]
+    # (cf. Elhelf et al./ResearchSquare FDG PET/CT dosimetry papers, which
+    # use exactly this additive structure.)
+    df = pd.DataFrame({
+        "_dlp_mGycm": [800.0],
+        "_age_years": [50.0],
+        "_region": ["trunk"],
+        "_activity_MBq": [300.0],
+        "_radiopharm": ["F18_FDG"],
+    })
+    out = calculate_pet_ct_effective_dose(df, include_ct=True)
+    # CT part: trunk, adult -> k=0.015 -> 800*0.015 = 12.0 mSv
+    assert out.loc[0, "ct_effective_dose_mSv"] == 12.0, out.loc[0]
+    # NM part: FDG adult -> 300*0.019 = 5.7 mSv
+    assert out.loc[0, "nm_effective_dose_mSv"] == 5.7, out.loc[0]
+    assert out.loc[0, "total_effective_dose_mSv"] == 17.7, out.loc[0]
+    assert out.loc[0, "total_dose_status"] == "ok"
+    print("test_pet_ct_worked_example: PASS")
+
+
+def test_pet_ct_partial_results_not_hidden():
+    df = pd.DataFrame({
+        "_dlp_mGycm": [800.0, None],
+        "_age_years": [50.0, 50.0],
+        "_region": ["trunk", "trunk"],
+        "_activity_MBq": [300.0, 300.0],
+        "_radiopharm": ["F18_FDG", "F18_FDG"],
+    })
+    out = calculate_pet_ct_effective_dose(df, include_ct=True)
+    # Row 0: complete -> total ok
+    assert out.loc[0, "total_dose_status"] == "ok"
+    # Row 1: CT missing DLP -> NM component still calculated and visible,
+    # total is blank with a specific reason, not a generic failure
+    assert pd.isna(out.loc[1, "ct_effective_dose_mSv"])
+    assert out.loc[1, "nm_effective_dose_mSv"] == 5.7
+    assert pd.isna(out.loc[1, "total_effective_dose_mSv"])
+    assert "CT:" in out.loc[1, "total_dose_status"]
+    print("test_pet_ct_partial_results_not_hidden: PASS")
+
+
+def test_pet_ct_nm_only_mode():
+    df = pd.DataFrame({
+        "_age_years": [45.0],
+        "_activity_MBq": [150.0],
+        "_radiopharm": ["Ga68_DOTATATE"],
+    })
+    out = calculate_pet_ct_effective_dose(df, include_ct=False)
+    assert out.loc[0, "nm_effective_dose_mSv"] == round(150.0 * 0.021, 4)
+    assert out.loc[0, "total_effective_dose_mSv"] == out.loc[0, "nm_effective_dose_mSv"]
+    assert out.loc[0, "total_dose_status"] == "ok"
+    print("test_pet_ct_nm_only_mode: PASS")
+
+
 if __name__ == "__main__":
     test_age_binning()
     test_known_k_factors()
     test_worked_examples_from_reference_site()
     test_missing_data_never_imputed()
     test_unsupported_region_flagged_not_guessed()
+    test_nm_coefficients_against_fda_labels()
+    test_pet_ct_worked_example()
+    test_pet_ct_partial_results_not_hidden()
+    test_pet_ct_nm_only_mode()
     print("\nAll tests passed.")
