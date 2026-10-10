@@ -1,0 +1,11 @@
+PatientID;Age;Study;Tracer;Activity_MBq;DLP_mGycm;Region
+S001;58;Bone scan;MDP;740;;chest
+S002;12;Bone scan;MDP;370;;chest
+S003;66;MPI rest;sestamibi rest;300;85;chest
+S004;49;MPI stress;sestamibi stress;900;85;chest
+S005;9;MPI rest;sestamibi rest;250;60;chest
+S006;;DaTscan;ioflupane;185;;head
+S007;71;Parathyroid;sestamibi rest;740;;neck
+S008;55;DaTscan;ioflupane;;;head
+S009;63;Infection;gallium;5000;;trunk
+S010;47;Renal;DMSA;1,5;;abdomen
